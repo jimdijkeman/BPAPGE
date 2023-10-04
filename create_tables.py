@@ -4,6 +4,7 @@ conn_string = """
 host='localhost'
 user='jimdijkemans'
 dbname='bpapge'
+password='rOtring600'
 """
 
 conn = psycopg2.connect(conn_string)
