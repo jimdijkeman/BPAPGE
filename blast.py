@@ -1,6 +1,6 @@
 import subprocess
 import json
-
+from pprint import pprint
 
 class BLAST:
     def __init__(self, blast_type: str, query_file: str, db_file: str,
@@ -31,8 +31,17 @@ class BlastJSONParser:
         self.blast_result = blast_result
 
     def parse(self):
+        definitive_results = []
         with open(self.blast_result, 'r') as file:
             data = json.loads(file.read())
             for report in data['BlastOutput2']:
-                report = report['report']['results']
+                results = report['report']['results']
+                sorted_hits = sorted(results['search']['hits'], key=lambda x: x['hsps'][0]['evalue'])
+                highest_score = sorted_hits[0]
 
+                #if highest_score['hsps'][0]['identity'] == highest_score['hsps'][0]['align_len']:
+                definitive_results.append(highest_score)
+
+            print(len(definitive_results))
+
+                #break
