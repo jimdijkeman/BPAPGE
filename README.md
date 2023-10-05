@@ -15,7 +15,7 @@
   cd BlastDBTool
   pip3 install -r requirements.txt
 ```
-Configure `database.ini` with the variables shown below.
+Configure `database.ini` as shown below.
 ## Environment Variables
 
 To use this application, make sure the proper variables have been set in `database.ini`:
