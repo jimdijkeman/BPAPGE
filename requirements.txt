@@ -1,0 +1,4 @@
+Bio==1.5.9
+biopython==1.81
+psycopg2_binary==2.9.9
+Requests==2.31.0
