@@ -26,7 +26,7 @@ except Exception as e:
 try:
     print("Creating protein table....")
     sql = """CREATE TABLE protein (id SERIAL PRIMARY KEY,
-    name varchar(255), ec_number varchar(11), aminoacid_sequence text NOT NULL, gene_id integer NOT NULL,
+    name varchar(255), aminoacid_sequence text NOT NULL, gene_id integer NOT NULL,
     FOREIGN KEY (gene_id) REFERENCES gene(id))"""
     cursor.execute(sql)
     print("query executed")

@@ -1,8 +1,9 @@
 from pprint import pprint
-
+import re
 from connection import Connection
-from queries.gene import GeneQuery
 
+from queries.gene import GeneQuery
+from queries.protein import ProteinQuery
 from blast import BLAST, BlastJSONParser
 from api import UniProtAPI, KEGGAPI
 #with Connection.connect_from_ini_config() as (conn, curr):
@@ -20,15 +21,34 @@ from api import UniProtAPI, KEGGAPI
 parser = BlastJSONParser('data/blastresults.out')
 data = parser.parse()
 
-def insert_genes(data):
+
+def insert_gene_and_protein(data):
     with Connection.connect_from_ini_config() as (cur, conn):
-        genequery = GeneQuery('gene', cur)
+        #gene_id = insert_genes(data)
+        gene_query = GeneQuery('gene', cur)
+        protein_query = ProteinQuery('protein', cur)
+        proteins_in_db = []
         for hit in data:
             accession = hit['description'][0]['accession']
             nuc_sequence = hit['original_nuc_seq']
-            #pprint(nuc_sequence)
-            query_result = genequery.insert(accession, nuc_sequence)
-            pprint(query_result)
-            #break
+            gene_id = gene_query.insert(accession, nuc_sequence)
+            protein_data = get_protein_data(hit, gene_id)
+            if protein_data[0] not in proteins_in_db:
+                protein_id = protein_query.insert(protein_data)
+                proteins_in_db.append(protein_data[0])
 
-insert_genes(data)
+        pprint(proteins_in_db)
+
+
+def get_protein_data(hit, gene_id):
+    pattern = re.compile(r'GN=([^\s]+)')
+    match = pattern.search(hit['description'][0]['title'])
+    if match:
+        gn_value = match.group(1)
+    else:
+        gn_value = ''
+    amino_seq = hit['hsps'][0]['qseq']
+    return (gn_value, amino_seq, gene_id)
+
+insert_gene_and_protein(data) 
+

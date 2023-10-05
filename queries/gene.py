@@ -1,4 +1,3 @@
-#from basequery import BaseQuery
 from .basequery import BaseQuery
 
 class GeneQuery(BaseQuery):
