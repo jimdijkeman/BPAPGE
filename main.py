@@ -10,9 +10,12 @@ from queries.protein import ProteinQuery
 from queries.pathway import PathwayQuery
 from queries.protein_pathway import ProteinPathwayQuery
 
+# Import database classes
+from database import DatabaseInitializer
+
 # Import API wrappers
 from api import UniProtAPI, KEGGAPI
-
+# Import BLAST wrapper & JSON parser
 from blast import BLAST, BlastJSONParser
 
 def blast(query_file, db_file):
@@ -25,7 +28,6 @@ data = parser.parse()
 
 def insert_gene_and_protein(data):
     with Connection.connect_from_ini_config() as (cur, conn):
-        #gene_id = insert_genes(data)
         gene_query = GeneQuery('gene', cur)
         protein_query = ProteinQuery('protein', cur)
         proteins_in_db = []
@@ -70,5 +72,25 @@ def get_pathways():
                    pw_id = pathway_query.get_by_kegg_id(name)
                    protein_pathway_query.insert(p[0], pw_id)
 
+def create_tables():
+    with Connection.connect_from_ini_config() as (cur, conn):
+        db_init = DatabaseInitializer(cur)
+        db_init.create_all()
+
+def drop_tables():
+    with Connection.connect_from_ini_config() as (cur, conn):
+        db_init = DatabaseInitializer(cur)
+        db_init.drop_all()
+
 #get_pathways()
-blast('seq.fa', 'data/proteoom_alligator.fa')
+if __name__ == "__main__":
+    copyright_notice = """
+    BlastDBTool  Copyright (C) 2023  Jim van Dijk
+    This program comes with ABSOLUTELY NO WARRANTY.
+    This is free software, and you are welcome to redistribute it
+    under certain conditions; see LICENSE.md for details.\n"""
+    print(copyright_notice)
+
+    create_tables()
+
+#blast('seq.fa', 'data/proteoom_alligator.fa')
