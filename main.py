@@ -1,24 +1,25 @@
 from pprint import pprint
 import re
+
+# Import database connection class
 from connection import Connection
 
+# Import query files
 from queries.gene import GeneQuery
 from queries.protein import ProteinQuery
-from blast import BLAST, BlastJSONParser
+from queries.pathway import PathwayQuery
+from queries.protein_pathway import ProteinPathwayQuery
+
+# Import API wrappers
 from api import UniProtAPI, KEGGAPI
-#with Connection.connect_from_ini_config() as (conn, curr):
-#    print(conn)
 
-#blastx = BLAST('blastx', 'seq.fa', 'data/proteoom_alligator.fa', '15')
-#blastx.run()
-#new_api = UniProtAPI()
-#keggid = new_api.translate_accession_to_keggid("LOC102384980")
-#print(keggid)
-#keggapi = KEGGAPI()
-#pathways = kecggapi.get_pathways("asn:102384980")
-#print(pathways)
+from blast import BLAST, BlastJSONParser
 
-parser = BlastJSONParser('data/blastresults.out')
+def blast(query_file, db_file):
+     blast = BLAST('blastx', query_file, db_file).run()
+     return blast
+
+parser = BlastJSONParser('data/out/blastresults.out')
 data = parser.parse()
 
 
@@ -37,8 +38,6 @@ def insert_gene_and_protein(data):
                 protein_id = protein_query.insert(protein_data)
                 proteins_in_db.append(protein_data[0])
 
-        pprint(proteins_in_db)
-
 
 def get_protein_data(hit, gene_id):
     pattern = re.compile(r'GN=([^\s]+)')
@@ -50,5 +49,26 @@ def get_protein_data(hit, gene_id):
     amino_seq = hit['hsps'][0]['qseq']
     return (gn_value, amino_seq, gene_id)
 
-insert_gene_and_protein(data) 
 
+def get_pathways():
+    with Connection.connect_from_ini_config() as (cur, conn):
+        kegg_api = KEGGAPI()
+        uniprot_api = UniProtAPI()
+        proteins = ProteinQuery('protein', cur).get_all()
+        pathways_in_db = []
+        for p in proteins:
+            kegg_id = uniprot_api.translate_accession_to_keggid(p[1])
+            pathways = kegg_api.get_pathways(kegg_id)
+            pathway_query = PathwayQuery('pathway', cur)
+            protein_pathway_query = ProteinPathwayQuery('protein_pathway', cur)
+            for name, description in pathways.items():
+                if name not in pathways_in_db:
+                   pathway_id = pathway_query.insert(name, description)
+                   protein_pathway_query.insert(p[0], pathway_id)
+                   pathways_in_db.append(name)
+                else:
+                   pw_id = pathway_query.get_by_kegg_id(name)
+                   protein_pathway_query.insert(p[0], pw_id)
+
+#get_pathways()
+blast('seq.fa', 'data/proteoom_alligator.fa')

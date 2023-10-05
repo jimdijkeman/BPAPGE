@@ -6,7 +6,7 @@ from Bio import SeqIO
 
 class BLAST:
     def __init__(self, blast_type: str, query_file: str, db_file: str,
-                 output_fmt: str = "6", output_file: str = "data/out/blastresults.out", **kwargs) -> None:
+                 output_fmt: str = "15", output_file: str = "data/out/blastresults.out", **kwargs) -> None:
         self.blast_type = blast_type
         self.query_file = query_file
         self.db_file = db_file
@@ -26,6 +26,7 @@ class BLAST:
             print("Standard Error:")
             print(result.stderr)
             return 0
+        print(f'{self.blast_type} succesfull, saved to: {self.output_file}')
         return 1
 
 class BlastJSONParser:

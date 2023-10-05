@@ -36,4 +36,6 @@ class Connection:
     def __exit__(self, exc_type, exc_value, exec_traceback):
         self.cursor.close()
         self.conn.commit()
+        print('Changes commited to database...')
         self.conn.close()
+        print('Database connection closed...')
