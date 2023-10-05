@@ -13,6 +13,7 @@
 ```bash
   git clone https://github.com/jimdijkeman/BlastDBTool.git
   cd BlastDBTool
+  pip3 install -r requirements.txt
 ```
 Configure `database.ini` with the variables shown below.
 ## Environment Variables
