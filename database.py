@@ -1,5 +1,3 @@
-from connection import Connection
-
 class DatabaseManager:
     def __init__(self, table_name: str, cursor) -> None:
         self.cursor = cursor

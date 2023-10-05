@@ -1,5 +1,6 @@
 from pprint import pprint
 import re
+import argparse
 
 # Import database connection class
 from connection import Connection
@@ -22,11 +23,8 @@ def blast(query_file, db_file):
      blast = BLAST('blastx', query_file, db_file).run()
      return blast
 
-parser = BlastJSONParser('data/out/blastresults.out')
-data = parser.parse()
-
-
-def insert_gene_and_protein(data):
+def insert_gene_and_protein():
+    data = BlastJSONParser('data/out/blastresults.out').parse()
     with Connection.connect_from_ini_config() as (cur, conn):
         gene_query = GeneQuery('gene', cur)
         protein_query = ProteinQuery('protein', cur)
@@ -82,8 +80,7 @@ def drop_tables():
         db_init = DatabaseInitializer(cur)
         db_init.drop_all()
 
-#get_pathways()
-if __name__ == "__main__":
+def main():
     copyright_notice = """
     BlastDBTool  Copyright (C) 2023  Jim van Dijk
     This program comes with ABSOLUTELY NO WARRANTY.
@@ -91,6 +88,33 @@ if __name__ == "__main__":
     under certain conditions; see LICENSE.md for details.\n"""
     print(copyright_notice)
 
-    create_tables()
+    parser = argparse.ArgumentParser(
+            description='BlastDBTool Command Line Interface',
+            epilog='https://github.com/jimdijkeman/BPAPGE'
+            )
+    
+    parser.add_argument('--blast', nargs=2, metavar=('QUERY_FILE', 'DB_FILE'), help='Run BLAST')
+    parser.add_argument('--insert', action='store_true', help='Insert gene and protein data')
+    parser.add_argument('--get_pathways', action='store_true', help='Retrieve pathways')
+    parser.add_argument('--create_tables', action='store_true', help='Create all tables')
+    parser.add_argument('--drop_tables', action='store_true', help='Drop all tables')
+    args = parser.parse_args()
 
-#blast('seq.fa', 'data/proteoom_alligator.fa')
+    if args.blast:
+        blast(*args.blast)
+    if args.create_tables:
+        create_tables()
+    if args.insert:
+        insert_gene_and_protein()
+    if args.get_pathways:
+        get_pathways()
+    if args.drop_tables:
+        drop_tables()
+
+    if not any(vars(args).values()):
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
+
+
