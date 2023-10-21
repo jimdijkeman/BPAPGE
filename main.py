@@ -1,5 +1,4 @@
 from pprint import pprint
-import re
 import argparse
 
 # Import database connection class
@@ -7,68 +6,73 @@ from connection import Connection
 
 # Import query files
 from queries.gene import GeneQuery
+from queries.raw_sequence import RawSequenceQuery
 from queries.protein import ProteinQuery
 from queries.pathway import PathwayQuery
 from queries.protein_pathway import ProteinPathwayQuery
+from queries.protein_alignment import ProteinAlignmentQuery
+from queries.alignment import AlignmentQuery
+
+# Import models
+from models.alignment import Alignment
+from models.gene import Gene
+from models.protein import Protein
+from models.protein_alignment import ProteinAlignment
+from models.raw_sequence import RawSequence
 
 # Import database classes
 from database import DatabaseInitializer
 
 # Import API wrappers
 from api import UniProtAPI, KEGGAPI
+
 # Import BLAST wrapper & JSON parser
 from blast import BLAST, BlastJSONParser
+
+# Import parser functions
+from parsers import (parse_alignment,
+                     parse_gene,
+                     parse_protein,
+                     get_sequence_from_title
+                     )
+
+
 
 def blast(query_file, db_file):
      blast = BLAST('blastx', query_file, db_file).run()
      return blast
 
-def insert_gene_and_protein():
+
+def get_alignments():
     data = BlastJSONParser('data/out/blastresults.out').parse()
     with Connection.connect_from_ini_config() as (cur, conn):
-        gene_query = GeneQuery('gene', cur)
-        protein_query = ProteinQuery('protein', cur)
-        proteins_in_db = []
-        for hit in data:
-            accession = hit['description'][0]['accession']
-            nuc_sequence = hit['original_nuc_seq']
-            gene_id = gene_query.insert(accession, nuc_sequence)
-            protein_data = get_protein_data(hit, gene_id)
-            if protein_data[0] not in proteins_in_db:
-                protein_id = protein_query.insert(protein_data)
-                proteins_in_db.append(protein_data[0])
+        for alignments in data:
+            raw_seq = RawSequence(
+                    alignments['results']['search']['query_title'],
+                    get_sequence_from_title('seq.fa', alignments['results']['search']['query_title'])
+                    )
+            raw_seq_id = RawSequenceQuery('raw_sequence', cur).insert(raw_seq)
+            for a in alignments['results']['search']['hits']:
+                query_from, query_to = a['hsps'][0]['query_from'], a['hsps'][0]['query_to']
 
-
-def get_protein_data(hit, gene_id):
-    pattern = re.compile(r'GN=([^\s]+)')
-    match = pattern.search(hit['description'][0]['title'])
-    if match:
-        gn_value = match.group(1)
-    else:
-        gn_value = ''
-    amino_seq = hit['hsps'][0]['qseq']
-    return (gn_value, amino_seq, gene_id)
-
-
-def get_pathways():
-    with Connection.connect_from_ini_config() as (cur, conn):
-        kegg_api = KEGGAPI()
-        uniprot_api = UniProtAPI()
-        proteins = ProteinQuery('protein', cur).get_all()
-        pathways_in_db = []
-        for p in proteins:
-            kegg_id = uniprot_api.translate_accession_to_keggid(p[1])
-            pathways = kegg_api.get_pathways(kegg_id)
-            pathway_query = PathwayQuery('pathway', cur)
-            protein_pathway_query = ProteinPathwayQuery('protein_pathway', cur)
-            for name, description in pathways.items():
-                if name not in pathways_in_db:
-                   pathway_id = pathway_query.insert(name, description)
-                   protein_pathway_query.insert(p[0], pathway_id)
-                   pathways_in_db.append(name)
+                gene = parse_gene(a, raw_seq.nucleotide_sequence[query_from:query_to])
+                existing_gene = GeneQuery('gene', cur).get_id_by_name(gene.name)
+                if existing_gene:
+                    gene_id = existing_gene
                 else:
-                   pw_id = pathway_query.get_by_kegg_id(name)
-                   protein_pathway_query.insert(p[0], pw_id)
+                    gene_id = GeneQuery('gene', cur).insert(gene)
+
+                protein = parse_protein(a)
+                existing_protein = ProteinQuery('protein', cur).get_id_by_name(protein.name)
+                if existing_protein:
+                    protein_id = existing_protein
+                else:
+                    protein_id = ProteinQuery('protein', cur).insert(parse_protein(a))
+
+                alignment_id = AlignmentQuery('alignment', cur).insert(parse_alignment(a, gene_id, protein_id, raw_seq_id))
+
+
+
 
 def create_tables():
     with Connection.connect_from_ini_config() as (cur, conn):
@@ -90,7 +94,7 @@ def main():
 
     parser = argparse.ArgumentParser(
             description='BlastDBTool Command Line Interface',
-            epilog='https://github.com/jimdijkeman/BPAPGE'
+            epilog='https://github.com/jimdijkeman/BlastDBTool'
             )
     
     parser.add_argument('--blast', nargs=2, metavar=('QUERY_FILE', 'DB_FILE'), help='Run BLAST')
@@ -105,9 +109,10 @@ def main():
     if args.create_tables:
         create_tables()
     if args.insert:
-        insert_gene_and_protein()
+        get_alignments()
     if args.get_pathways:
-        get_pathways()
+        #get_pathways()
+        pass
     if args.drop_tables:
         drop_tables()
 

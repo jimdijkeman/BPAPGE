@@ -17,12 +17,26 @@ class DatabaseManager:
         except Exception as e:
             print(e)
 
+class RawSequenceTable(DatabaseManager):
+    def __init__(self, cursor) -> None:
+        super().__init__('raw_sequence', cursor)
+
+    def create(self):
+        sql = """
+        CREATE TABLE raw_sequence (
+            id SERIAL PRIMARY KEY,
+            title varchar(255) NOT NULL,
+            nucleotide_sequence text NOT NULL
+            )
+        """
+        self.create_table(sql)
+
 class GeneTable(DatabaseManager):
     def __init__(self, cursor) -> None:
         super().__init__('gene', cursor)
 
     def create(self):
-        sql = """CREATE TABLE gene (id SERIAL PRIMARY KEY, accession varchar(255) NOT NULL,
+        sql = """CREATE TABLE gene (id SERIAL PRIMARY KEY, gene_name varchar(255) NOT NULL,
                 nucleotide_sequence text NOT NULL)"""
         self.create_table(sql)
 
@@ -32,9 +46,41 @@ class ProteinTable(DatabaseManager):
         super().__init__('protein', cursor)
 
     def create(self):
-        sql = """CREATE TABLE protein (id SERIAL PRIMARY KEY,
-            name varchar(255), aminoacid_sequence text NOT NULL, gene_id integer NOT NULL,
-            FOREIGN KEY (gene_id) REFERENCES gene(id))"""
+        sql = """
+        CREATE TABLE protein (
+            id SERIAL PRIMARY KEY,
+            name varchar(255),
+            aminoacid_sequence text NOT NULL
+            )
+        """
+        self.create_table(sql)
+
+class AlignmentTable(DatabaseManager):
+    def __init__(self, cursor) -> None:
+        super().__init__('alignment', cursor)
+
+    def create(self):
+        sql = """
+        CREATE TABLE alignment (
+            id SERIAL PRIMARY KEY,
+            length INT NOT NULL,
+            bit_score FLOAT NOT NULL,
+            raw_score INT NOT NULL,
+            evalue FLOAT NOT NULL,
+            identity INT NOT NULL,
+            positive INT NOT NULL,
+            query_from INT NOT NULL,
+            query_to INT NOT NULL,
+            hit_seq TEXT NOT NULL,
+            query_seq TEXT NOT NULL,
+            gene_id INT NOT NULL,
+            protein_id INT NOT NULL,
+            raw_seq_id INT NOT NULL,
+            FOREIGN KEY (gene_id) REFERENCES gene(id),
+            FOREIGN KEY (protein_id) REFERENCES protein(id),
+            FOREIGN KEY (raw_seq_id) REFERENCES raw_sequence(id)
+            )
+        """
         self.create_table(sql)
 
 
@@ -84,8 +130,10 @@ class DatabaseInitializer:
     def __init__(self, cursor) -> None:
         self.cursor = cursor
         self.tables = [
+            RawSequenceTable(cursor),
             GeneTable(cursor),
             ProteinTable(cursor),
+            AlignmentTable(cursor),
             FunctionTable(cursor),
             SplicingVariantTable(cursor),
             PathwayTable(cursor),

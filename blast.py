@@ -1,3 +1,4 @@
+from re import I
 import subprocess
 import json
 from pprint import pprint
@@ -46,11 +47,6 @@ class BlastJSONParser:
         with open(self.blast_result, 'r') as file:
             data = json.loads(file.read())
             for report in data['BlastOutput2']:
-                results = report['report']['results']
-                query_title = results['search']['query_title']
-                sorted_hits = sorted(results['search']['hits'], key=lambda x: x['hsps'][0]['evalue'])
-                highest_score = sorted_hits[0]
-                highest_score['query_title'] = query_title
-                highest_score['original_nuc_seq'] = str(self.get_sequence_from_file('seq.fa', query_title)) 
-                definitive_results.append(highest_score)
+                results = report['report']
+                definitive_results.append(results)
             return definitive_results
