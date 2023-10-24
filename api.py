@@ -27,8 +27,8 @@ class KEGGAPI(APIClient):
         base_url = 'http://togows.org'
         super().__init__(base_url)
 
-    def get_pathways(self, gene_id):
-        endpoint = f'entry/kegg-genes/{gene_id}/pathways.json'
+    def get_pathways(self, kegg_id) -> dict:
+        endpoint = f'entry/kegg-genes/{kegg_id}/pathways.json'
         res = self.make_request(endpoint)
         return res[0]
 

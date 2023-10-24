@@ -3,8 +3,8 @@ class BaseQuery:
         self.table = table
         self.cursor = cursor
 
-    def get_all(self):
-        self.cursor.execute(f'SELECT * FROM {self.table}')
+    def get_all(self, query: str = ""):
+        self.cursor.execute(f'SELECT * FROM {self.table} {query}')
         return self.cursor.fetchall()
 
     def get_by_id(self, record_id):
