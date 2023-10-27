@@ -90,7 +90,7 @@ class FunctionTable(DatabaseManager):
 
     def create(self):
         sql = """CREATE TABLE function (id SERIAL PRIMARY KEY,
-                description text NOT NULL, protein_id integer NOT NULL,
+                description text NOT NULL, protein_id integer NOT NULL UNIQUE,
                 FOREIGN KEY (protein_id) REFERENCES protein(id))"""
         self.create_table(sql)
 

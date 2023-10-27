@@ -1,4 +1,5 @@
 import requests
+import re
 
 class APIClient:
     def __init__(self, base_url: str) -> None:
@@ -20,7 +21,17 @@ class UniProtAPI(APIClient):
         res = self.make_request(endpoint)
         kegg_id = res[0]['KEGG'][0][0]
         return kegg_id
-
+    
+    def get_function(self, gene_name: str):
+        endpoint = f'entry/ebi-uniprot/{gene_name}/comment.json'
+        res = self.make_request(endpoint)
+        pattern = r"(\(.*?\))|(\{.*?\})|(?<=\W)\."
+        if res[0].get('FUNCTION'):
+            function_raw = res[0].get('FUNCTION')[0]
+            result = re.sub(pattern, "", function_raw)
+            return result.strip()
+        else:
+            return 0
 
 class KEGGAPI(APIClient):
     def __init__(self) -> None:
