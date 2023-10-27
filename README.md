@@ -44,8 +44,13 @@ options:
 ```
 
 ### Example:
+Create blastdb
 ```bash
-python3 main.py --create_tables --blast seq.fa proteoomdb.fa --insert --get_pathways
+sh blast_db.sh
+```
+Run script with all functions
+```bash
+python3 main.py --blast seq.fa data/proteoom_alligator.fa --drop_tables --create_tables --insert --load_isoforms --get_pathways --get_functions
 ```
 
 
