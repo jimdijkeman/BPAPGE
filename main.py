@@ -1,4 +1,3 @@
-from pprint import pprint
 import argparse
 from tqdm import tqdm
 import psycopg2
@@ -12,15 +11,11 @@ from queries.raw_sequence import RawSequenceQuery
 from queries.protein import ProteinQuery
 from queries.pathway import PathwayQuery
 from queries.protein_pathway import ProteinPathwayQuery
-from queries.protein_alignment import ProteinAlignmentQuery
 from queries.alignment import AlignmentQuery
 from queries.splicing_variant import SplicingVariantQuery
 from queries.function import FunctionQuery
 # Import models
-from models.alignment import Alignment
-from models.gene import Gene
 from models.protein import Protein
-from models.protein_alignment import ProteinAlignment
 from models.raw_sequence import RawSequence
 from models.splicing_variant import SplicingVariant
 from models.function import Function
@@ -44,18 +39,30 @@ from parsers import (parse_alignment,
 
 
 def blast(query_file, db_file):
-     blast = BLAST('blastx', query_file, db_file).run()
-     return blast
+    """Execute the BLAST algorithm and return bool (success).
+
+    Parameters:
+    query_file (str): Path to the file containing query sequences.
+    db_file (str): Path to the database file.
+
+    Returns:
+    bool: result.
+    """
+    blastres = BLAST('blastx', query_file, db_file).run()
+    return blastres
 
 
 def get_alignments():
+    """Retrieve and process alignment data, inserting it into the database."""
     data = BlastJSONParser('data/out/blastresults.out').parse()
     with Connection.connect_from_ini_config() as (cur, conn):
         for alignments in tqdm(data, desc='Processing alignments', unit='alignment'):
         # for alignments in data:
             raw_seq = RawSequence(
                     alignments['results']['search']['query_title'],
-                    get_sequence_from_title('seq.fa', alignments['results']['search']['query_title'])
+                    get_sequence_from_title('seq.fa',
+                                            alignments['results']['search']['query_title']
+                                            )
                     )
             raw_seq_id = RawSequenceQuery('raw_sequence', cur).insert(raw_seq)
             for a in alignments['results']['search']['hits']:
@@ -76,15 +83,23 @@ def get_alignments():
                     else:
                         protein_id = ProteinQuery('protein', cur).insert(parse_protein(a))
 
-                    alignment_id = AlignmentQuery('alignment', cur).insert(parse_alignment(a, gene_id, protein_id, raw_seq_id))
+                    AlignmentQuery('alignment', cur).insert(
+                        parse_alignment(
+                            a,
+                            gene_id,
+                            protein_id,
+                            raw_seq_id
+                            )
+                        )
 
 def get_pathways():
+    """Retrieve and process pathway data, inserting it into the database."""
     with Connection.connect_from_ini_config() as (cur, conn):
         added_pathways = {}
         processed_proteins = {}
 
         proteins = ProteinQuery('protein', cur).get_all()
-        
+
         for prot in tqdm(proteins, desc='Processing proteins', unit='protein'):
             gene_protein_join = ProteinQuery('protein', cur).join_genes(prot[0])
             for gene_name, prot_id in gene_protein_join:
@@ -98,13 +113,18 @@ def get_pathways():
                                 added_pathways[key] = pathway_id
                             else:
                                 pathway_id = added_pathways[key]
-                        
-                            ProteinPathwayQuery('protein_pathway', cur).insert(prot_id, pathway_id)
+
+                            ProteinPathwayQuery('protein_pathway', cur).insert(prot_id,
+                                                                               pathway_id)
                             processed_proteins[gene_name] = pathway_id
                 else:
-                    ProteinPathwayQuery('protein_pathway', cur).insert(prot_id, processed_proteins[gene_name])
+                    ProteinPathwayQuery('protein_pathway',
+                                        cur
+                                        ).insert(prot_id,
+                                                 processed_proteins[gene_name])
 
 def load_isoforms():
+    """Load isoforms from a fasta file, inserting them into the database."""
     with Connection.connect_from_ini_config() as (cur, conn):
         isoform_dict = get_isoforms_from_fasta("data/proteoom_alligator.fa")
         existing_genes_dict = {}
@@ -124,6 +144,7 @@ def load_isoforms():
                 SplicingVariantQuery('splicing_variant', cur).insert(splicing_variant)
 
 def get_functions():
+    """Retrieve and process protein function data, inserting it into the database."""
     with Connection.connect_from_ini_config() as (cur, conn):
         proteins = ProteinQuery('protein', cur).get_all()
         for prot in tqdm(proteins, desc='Fetching protein functions', unit='function'):
@@ -134,21 +155,24 @@ def get_functions():
                     new_function = Function(function, prot_id)
                     try:
                         FunctionQuery('function', cur).insert(new_function)
-                    except psycopg2.IntegrityError as e:
+                    except psycopg2.IntegrityError:
                         conn.rollback()
 
 
 def create_tables():
+    """Create necessary tables in the database."""
     with Connection.connect_from_ini_config() as (cur, conn):
         db_init = DatabaseInitializer(cur)
         db_init.create_all()
 
 def drop_tables():
+    """Drop all tables in the database."""
     with Connection.connect_from_ini_config() as (cur, conn):
         db_init = DatabaseInitializer(cur)
         db_init.drop_all()
 
 def main():
+    """Main function that executes various tasks based on command line arguments."""
     copyright_notice = """
     BlastDBTool  Copyright (C) 2023  Jim van Dijk
     This program comes with ABSOLUTELY NO WARRANTY.
@@ -160,7 +184,7 @@ def main():
             description='BlastDBTool Command Line Interface',
             epilog='https://github.com/jimdijkeman/BlastDBTool'
             )
-    
+
     parser.add_argument('--blast', nargs=2, metavar=('QUERY_FILE', 'DB_FILE'), help='Run BLAST')
     parser.add_argument('--insert', action='store_true', help='Insert gene and protein data')
     parser.add_argument('--load_isoforms', action='store_true', help='Load isoforms from a blastdb')
@@ -191,5 +215,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
